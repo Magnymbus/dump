@@ -34,3 +34,5 @@ files = list(iglob(os.path.join(".\\Game", '**', '*.cs'), recursive=True))
 for file in files:
     new_path = get_script_path(file) or validate_path(file)
     print(f"{new_path} {'replaces existing!' if os.path.exists(new_path) else 'DOES NOT EXIST!'}")
+
+#TODO: Actually copy or move the files into their proper place.
