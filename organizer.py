@@ -1,8 +1,10 @@
 import os
 import re
 from glob import iglob
+import shutil
 
 SCRIPT_PATH_RE = re.compile(r'ScriptPath\("res://(.*?\.cs)')
+
 
 def get_script_path(file_path):
     with open(file_path, "r") as f:
@@ -11,8 +13,10 @@ def get_script_path(file_path):
                 return match.group(1)
     return None
 
+
 def pluralize(string):
     return f'{string[:-1]}ies' if string.endswith('y') else f'{string}s'
+
 
 def validate_path(file_path):
     parts = file_path.split('\\')
@@ -30,9 +34,48 @@ def validate_path(file_path):
             valid_path = potential_path
     return os.path.join(valid_path.lower(), file_name)
 
-files = list(iglob(os.path.join(".\\Game", '**', '*.cs'), recursive=True))
-for file in files:
-    new_path = get_script_path(file) or validate_path(file)
-    print(f"{new_path} {'replaces existing!' if os.path.exists(new_path) else 'DOES NOT EXIST!'}")
 
-#TODO: Actually copy or move the files into their proper place.
+def replace_files(file_dict):
+    for values in file_dict.values():
+        shutil.copy(values['old'], values['new'])
+
+
+def main():
+    files = list(iglob(os.path.join(".\\Game", '**', '*.cs'), recursive=True))
+    existing = {}
+    new = {}
+    for file in files:
+        new_path = f'./{get_script_path(file) or validate_path(file)}'.replace('\\', '/')
+        old_path = file.replace('\\', '/')
+        script_name = new_path.split('/')[-1]
+        if os.path.exists(new_path):
+            existing[script_name] = {'old': old_path, 'new': new_path}
+        else:
+            new[script_name] = {'old': old_path, 'new': new_path}
+
+    scripts = list(iglob(os.path.join(".\\scripts", '**', '*.cs'), recursive=True))
+    repairs = {}
+    unpaired = []
+    for script in scripts:
+        script = script.replace('\\', '/')
+        script_name = script.split('/')[-1]
+        if script_name in new:
+            repairs[script_name] = {'old': new[script_name]['old'], 'new': script}
+            del new[script_name]
+        elif script_name not in existing:
+            unpaired.append(script)
+
+    if new:
+        print('The following decomps were unable to be matched with scripts and may need to be manually recompiled:')
+        for v in new.values():
+            print(v['old'])
+
+    if unpaired:
+        print('\nThe following scripts were unable to be matched with decomps and may need to be manually recompiled:')
+        for file in unpaired:
+            print(file)
+
+    replace_files(existing | repairs)
+
+
+main()
